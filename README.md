@@ -1,1 +1,0 @@
-# Smart-land-moditoring-system
