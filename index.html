@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Smart land monitoring system PREDICTION & MONITORING</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ccircle cx=%2750%27 cy=%2750%27 r=%2745%27 fill=%27%230e7490%27/%3E%3Cpath d=%27M15 55 L35 55 L42 35 L52 70 L60 50 L68 55 L85 55%27 stroke=%27%2322d3ee%27 stroke-width=%276%27 fill=%27none%27 stroke-linejoin=%27round%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+</head>
+<body>
+<div class="auth-overlay hidden" id="authOverlay">
+  <div class="auth-box">
+    <h2 id="authTitle">เข้าสู่ระบบ</h2>
+    <p id="authSub">ระบบเฝ้าระวังแผ่นดินไหว — กรอกข้อมูลเพื่อเข้าใช้งาน</p>
+    <div class="auth-err" id="authErr"></div>
+    <input type="text" id="authUser" placeholder="Username" autocomplete="username">
+    <input type="password" id="authPass" placeholder="Password" autocomplete="current-password">
+    <button class="primary" id="authBtn" onclick="submitAuth()">เข้าสู่ระบบ</button>
+    <div class="auth-switch" id="authSwitch">ยังไม่มีบัญชี? <span onclick="toggleAuthMode()">สมัครสมาชิก</span></div>
+  </div>
+</div>
+<div id="toastWrap"></div>
+
+<div class="modal-overlay hidden" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-header"><h3 id="modalTitle"></h3><span onclick="closeModal()"><svg class="ico ico-md" viewBox="0 0 24 24" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="topbar">
+    <div class="brand" onclick="navGo('top')">
+      <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 17 L9 17 L11 10 L14 20 L16 13 L18 17 L20 17" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="10.5" stroke="#ffffff" stroke-width="1.3" opacity=".55"/></svg></div>
+      <div><b>Smart land monitoring system </b><span>PREDICTION & MONITORING</span></div>
+    </div>
+    <div class="alert-banner hidden" id="topAlert" onclick="scrollToBigAlert()">
+      <span><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+      <b id="topAlertText"></b>
+      <button class="detail-btn" onclick="event.stopPropagation();scrollToBigAlert()" data-i18n="view_detail">ดูรายละเอียด</button>
+    </div>
+    <div class="topbar-right">
+      <div><span class="live-dot"></span><span id="clock">--:--:--</span><br><span id="dateTh"></span></div>
+      <div class="lang-toggle" id="langToggle" onclick="toggleLanguage()" title="Switch language / เปลี่ยนภาษา"><svg class="ico ico-md" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> <span id="langToggleLbl">TH</span></div>
+      <div class="icon-toggle" id="themeToggle" onclick="toggleTheme()" title="Switch light/dark mode / สลับโหมดสว่าง-มืด"><svg class="ico ico-md" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
+      <div class="bell-wrap">
+        <div class="bell" onclick="toggleDropdown('bellDD')"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="dot" id="bellCount">0</span></div>
+        <div class="dropdown" id="bellDD">
+          <div class="dd-hd" data-i18n="notif_title">การแจ้งเตือน</div>
+          <div id="bellDDList"></div>
+          <div class="dd-item" style="text-align:center;color:var(--blue)" onclick="openAllAlertsModal()" data-i18n="view_all">ดูทั้งหมด</div>
+        </div>
+      </div>
+      <div class="admin-wrap">
+        <div class="admin" onclick="toggleDropdown('adminDD')"><svg class="ico ico-md" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="adminName">Admin</span> <svg class="ico ico-xs" viewBox="0 0 24 24" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg></div>
+        <div class="dropdown" id="adminDD">
+          <div class="dd-item" onclick="showToast('info',t('profile_title'),t('profile_body'));closeAllDropdowns()"><svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span data-i18n="profile_title">โปรไฟล์</span></div>
+          <div class="dd-item" onclick="navGo('navSettings');closeAllDropdowns()"><svg class="ico ico-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> <span data-i18n="account_settings">ตั้งค่าบัญชี</span></div>
+          <div class="dd-item" onclick="logoutUser();closeAllDropdowns()"><svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> <span data-i18n="logout">ออกจากระบบ</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar" id="sidebarNav">
+    <div class="nav-item active" data-target="top" onclick="navGo('top',this)"><svg class="ico" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> <span class="lbl">Dashboard</span></div>
+    <div class="nav-item" data-target="navMap" onclick="navGo('navMap',this)"><svg class="ico" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> <span class="lbl" data-i18n="nav_map">แผนที่เซนเซอร์</span></div>
+    <div class="nav-item" data-target="navSensorData" onclick="navGo('navSensorData',this)"><svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> <span class="lbl" data-i18n="nav_sensordata">ข้อมูลเซนเซอร์</span></div>
+    <div class="nav-item" data-target="navAlerts" onclick="navGo('navAlerts',this)"><svg class="ico" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> <span class="lbl" data-i18n="nav_alerts">การแจ้งเตือน</span></div>
+    <div class="nav-item" data-target="navAI" onclick="navGo('navAI',this)"><svg class="ico" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg> <span class="lbl" data-i18n="nav_ai">การคาดการณ์ (AI)</span></div>
+    <div class="nav-item" data-target="navSim" onclick="navGo('navSim',this)"><svg class="ico" viewBox="0 0 24 24"><path d="M9 2v6L4.5 18.5A2 2 0 0 0 6.3 21h11.4a2 2 0 0 0 1.8-2.5L15 8V2"/><path d="M9 2h6"/><path d="M6.5 15h11"/></svg> <span class="lbl" data-i18n="nav_sim">การจำลองเหตุการณ์</span></div>
+    <div class="nav-item" data-target="navSubsidence" onclick="navGo('navSubsidence',this)"><svg class="ico" viewBox="0 0 24 24"><path d="M17.5 17a4.5 4.5 0 1 0-1.3-8.8 6 6 0 0 0-11.2 3A4 4 0 0 0 6 19h11.5z"/><line x1="8" y1="20" x2="8" y2="22"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="16" y1="20" x2="16" y2="22"/></svg> <span class="lbl" data-i18n="nav_subsidence">คาดการณ์ดินทรุด</span></div>
+    <div class="nav-item" onclick="downloadReport();setActiveNav(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> <span class="lbl" data-i18n="nav_report">รายงาน</span></div>
+    <div class="nav-item" data-target="navSettings" onclick="navGo('navSettings',this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> <span class="lbl" data-i18n="nav_settings">ตั้งค่า</span></div>
+    <div class="nav-item" onclick="openHelpModal();setActiveNav(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <span class="lbl" data-i18n="nav_help">คู่มือการใช้งาน</span></div>
+  </div>
+
+  <div class="main" id="top">
+    <div class="card map-card" id="navMap">
+      <div class="map-toolbar">
+        <h3 style="margin:0" data-i18n="map_title">แผนที่เซนเซอร์แบบเรียลไทม์</h3>
+        <div style="display:flex;gap:8px;">
+          <select id="filterStatus" onchange="applyMapFilters()">
+            <option value="all" data-i18n="f_all">แสดงทั้งหมด</option>
+            <option value="ok" data-i18n="s_ok">ปกติ</option>
+            <option value="warn" data-i18n="s_warn">เริ่มผิดปกติ</option>
+            <option value="high" data-i18n="s_high">เสี่ยงสูง</option>
+            <option value="danger" data-i18n="s_danger">อันตราย</option>
+            <option value="offline" data-i18n="s_offline">ออฟไลน์</option>
+          </select>
+          <select id="filterType" onchange="applyMapFilters()">
+            <option value="all" data-i18n="f_alltype">ทุกประเภท</option>
+            <option value="Accelerometer">Accelerometer</option>
+            <option value="Geophone">Geophone</option>
+            <option value="GPS">GPS Deformation</option>
+            <option value="Soil">Soil Moisture</option>
+          </select>
+        </div>
+      </div>
+      <div class="map-wrap">
+        <div id="mapCanvas"></div>
+        <div class="map-controls">
+          <button onclick="zoom(1)" title="ซูมเข้า">+</button>
+          <button onclick="zoom(-1)" title="ซูมออก">−</button>
+          <button onclick="resetZoom()" title="รีเซ็ตมุมมอง">◎</button>
+        </div>
+        <div class="legend" id="legendBox">
+          <div class="leg-item" data-s="ok" onclick="legendClick('ok')"><span class="dot" style="background:var(--green)"></span><span data-i18n="s_ok">ปกติ</span></div>
+          <div class="leg-item" data-s="warn" onclick="legendClick('warn')"><span class="dot" style="background:var(--yellow)"></span><span data-i18n="s_warn">เริ่มผิดปกติ</span></div>
+          <div class="leg-item" data-s="high" onclick="legendClick('high')"><span class="dot" style="background:var(--orange)"></span><span data-i18n="s_high">เสี่ยงสูง</span></div>
+          <div class="leg-item" data-s="danger" onclick="legendClick('danger')"><span class="dot" style="background:var(--red)"></span><span data-i18n="s_danger">อันตราย</span></div>
+          <div class="leg-item" data-s="offline" onclick="legendClick('offline')"><span class="dot" style="background:var(--gray)"></span><span data-i18n="s_offline">ออฟไลน์</span></div>
+        </div>
+        <div class="info-panel" id="sensorInfo">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h4 id="infoName">TH-CM-024</h4><span class="badge ok" id="infoBadge">ปกติ</span>
+          </div>
+          <div style="color:var(--sub);margin-bottom:8px;"><svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <span id="infoLoc">เชียงใหม่, ประเทศไทย</span></div>
+          <div class="info-row"><span data-i18n="last_time">เวลาล่าสุด</span> <b id="infoTime">--:--:--</b></div>
+          <div class="info-row"><span data-i18n="vibration">แรงสั่นสะเทือน</span> <b id="infoVib">2.1 mm/s</b></div>
+          <div class="info-row"><span data-i18n="displacement">การเคลื่อนตัวดิน</span> <b id="infoDisp">+0.3 mm</b></div>
+          <div class="info-row"><span data-i18n="soil_moisture">ความชื้นดิน</span> <b id="infoMoist">24 %</b></div>
+          <div class="info-row"><span data-i18n="soil_pressure">ความดันใต้ดิน</span> <b id="infoPress">101.0 kPa</b></div>
+          <div class="info-row"><span data-i18n="risk">ความเสี่ยง</span> <b id="infoRisk">ต่ำ</b></div>
+          <button class="info-btn" onclick="openSensorDetailModal()" data-i18n="view_detail">ดูรายละเอียด</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row" id="statsRow">
+      <div class="stat" data-filter="all" onclick="statClick('all',this)"><div class="ic" style="background:#3b82f633;color:var(--blue)"><svg class="ico" viewBox="0 0 24 24"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M19.1 4.9c3.9 3.9 3.9 10.3 0 14.2M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4"/><circle cx="12" cy="12" r="2"/></svg></div><div><div class="num">128</div><div class="lbl" data-i18n="stat_total">เซนเซอร์ทั้งหมด</div></div></div>
+      <div class="stat" data-filter="online" onclick="statClick('online',this)"><div class="ic" style="background:#22c55e33;color:var(--green)"><svg class="ico" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="15"/><line x1="10" y1="21" x2="10" y2="11"/><line x1="16" y1="21" x2="16" y2="7"/><line x1="22" y1="21" x2="22" y2="3"/></svg></div><div><div class="num" id="onlineCount">122</div><div class="lbl" data-i18n="stat_online">ออนไลน์</div></div></div>
+      <div class="stat" data-filter="offline" onclick="statClick('offline',this)"><div class="ic" style="background:#6b728033;color:var(--gray)"><svg class="ico" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></div><div><div class="num" id="offlineCount">6</div><div class="lbl" data-i18n="stat_offline">ออฟไลน์</div></div></div>
+      <div class="stat" data-filter="abnormal" onclick="statClick('abnormal',this)"><div class="ic" style="background:#f9731633;color:var(--orange)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div><div><div class="num" id="abnormalCount">26</div><div class="lbl" data-i18n="stat_abnormal">เซนเซอร์ผิดปกติ</div></div></div>
+      <div class="stat" data-filter="alerttoday" onclick="statClick('alerttoday',this)"><div class="ic" style="background:#ef444433;color:var(--red)"><svg class="ico" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><div><div class="num" id="alertTodayCount">7</div><div class="lbl" data-i18n="stat_alerttoday">การแจ้งเตือนวันนี้</div></div></div>
+    </div>
+
+    <div class="card">
+      <h3><span data-i18n="chart_title">กราฟข้อมูลเซนเซอร์แบบเรียลไทม์</span> (<span id="chartSensorId">TH-CM-024</span>)</h3>
+      <div class="charts-grid">
+        <div class="chart-box"><div class="hd"><span>Ground Vibration (mm/s)</span></div><div class="val" id="v-vib">2.1</div><canvas class="spark" id="c-vib"></canvas></div>
+        <div class="chart-box"><div class="hd"><span>Ground Displacement (mm)</span></div><div class="val" id="v-disp">+0.3</div><canvas class="spark" id="c-disp"></canvas></div>
+        <div class="chart-box"><div class="hd"><span>Soil Pressure (kPa)</span></div><div class="val" id="v-press">101.0</div><canvas class="spark" id="c-press"></canvas></div>
+        <div class="chart-box"><div class="hd"><span>Soil Moisture (%)</span></div><div class="val" id="v-moist">24</div><canvas class="spark" id="c-moist"></canvas></div>
+        <div class="chart-box"><div class="hd"><span>AI Risk Score (%)</span></div><div class="val" id="v-risk">18</div><canvas class="spark" id="c-risk"></canvas></div>
+        <div class="chart-box"><div class="hd"><span data-i18n="trend_24h">แนวโน้ม 24 ชม. (%)</span></div><div class="val" id="v-trend">32</div><canvas class="spark" id="c-trend"></canvas></div>
+      </div>
+    </div>
+
+    <div class="bottom-grid">
+      <div class="card" id="navSensorData">
+        <h3><span data-i18n="latest_sensor_status">สถานะเซนเซอร์ล่าสุด</span> <span class="link" onclick="openAllSensorsModal()" data-i18n="view_all">ดูทั้งหมด</span></h3>
+        <div class="filter-note" id="tableFilterNote" style="display:none">
+          <span data-i18n="filtering">กำลังกรอง:</span> <b id="tableFilterLabel"></b> <button onclick="clearTableFilter()"><span data-i18n="clear_filter">ล้างตัวกรอง</span> <svg class="ico ico-xs" viewBox="0 0 24 24" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <table>
+          <thead><tr><th>Sensor ID</th><th data-i18n="location">ตำแหน่ง</th><th data-i18n="status">สถานะ</th><th data-i18n="last_time">เวลาล่าสุด</th><th data-i18n="th_vib">แรงสั่นสะเทือน (mm/s)</th><th data-i18n="th_disp">การเคลื่อนตัว (mm)</th><th data-i18n="th_moist">ความชื้น (%)</th><th data-i18n="risk">ความเสี่ยง</th></tr></thead>
+          <tbody id="sensorTable"></tbody>
+        </table>
+      </div>
+      <div class="card" id="navSim">
+        <h3 data-i18n="sim_title">เครื่องมือจำลองเหตุการณ์แผ่นดินไหว</h3>
+        <div class="sim-panel">
+          <div class="sim-field">
+            <label data-i18n="sim_event_type">ประเภทเหตุการณ์</label>
+            <select id="simType">
+              <option data-i18n="sim_type_eq">จำลองแผ่นดินไหว</option>
+              <option data-i18n="sim_type_after">จำลองอาฟเตอร์ช็อก</option>
+            </select>
+          </div>
+          <div class="sim-field">
+            <label>Magnitude (Mw) <span id="magVal">6.5</span></label>
+            <input type="range" id="magRange" min="3" max="9" step="0.1" value="6.5">
+          </div>
+          <div class="sim-field">
+            <label><span data-i18n="sim_depth">ความลึก (km)</span> <span id="depthVal">15</span></label>
+            <input type="range" id="depthRange" min="1" max="100" step="1" value="15">
+          </div>
+          <div class="sim-field">
+            <label><span data-i18n="sim_dur">ระยะเวลา (s)</span> <span id="durVal">30</span></label>
+            <input type="range" id="durRange" min="5" max="120" step="5" value="30">
+          </div>
+          <div class="sim-field">
+            <label><span data-i18n="sim_radius">พื้นที่ผลกระทบ (km)</span> <span id="radVal">100</span></label>
+            <input type="range" id="radRange" min="10" max="500" step="10" value="100">
+          </div>
+          <div class="sim-btns">
+            <button class="btn-start" id="btnStart" onclick="startSimulation()" data-i18n="sim_start">เริ่มจำลอง</button>
+            <button class="btn-stop" id="btnStop" onclick="stopSimulation()" disabled data-i18n="sim_stop">หยุด</button>
+            <button class="btn-reset" onclick="resetSimulation()" data-i18n="sim_reset">รีเซ็ต</button>
+          </div>
+          <div class="sim-status" id="simStatus" data-i18n="sim_ready">พร้อมจำลองเหตุการณ์</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="navSubsidence">
+      <h3><span data-i18n="subs_title">ระบบคาดการณ์ดินทรุดจากการจำลองสภาพอากาศ &amp; ความชื้น</span></h3>
+
+      <div class="subs-gauges" style="grid-template-columns:repeat(4,1fr);">
+        <div class="subs-gauge"><div class="g-lbl" data-i18n="subs_g_moist">ความชื้นผิวดิน</div><div class="g-val" id="gMoist">32%</div><div class="g-sub" data-i18n="subs_g_moist_sub">ในชั้นดินตื้น</div></div>
+        <div class="subs-gauge"><div class="g-lbl" data-i18n="subs_g_air">ความชื้นในอากาศ</div><div class="g-val" id="gAirHum">65%</div><div class="g-sub" data-i18n="subs_g_air_sub">ความชื้นสัมพัทธ์</div></div>
+        <div class="subs-gauge"><div class="g-lbl" data-i18n="subs_g_gw">ระดับน้ำบาดาล</div><div class="g-val" id="gGw">-12.0m</div><div class="g-sub" data-i18n="subs_g_gw_sub">จากผิวดิน</div></div>
+        <div class="subs-gauge"><div class="g-lbl" data-i18n="subs_g_rate">อัตราทรุด</div><div class="g-val" id="gRate">4.0</div><div class="g-sub">mm / <span data-i18n="subs_g_year">ปี</span></div></div>
+      </div>
+      <div class="subs-charts" style="grid-template-columns:repeat(4,1fr);">
+        <div class="chart-box"><div class="hd"><span data-i18n="subs_g_moist">ความชื้นผิวดิน</span> (%)</div><div class="val" id="sv-moist">32</div><canvas class="spark" id="c-sub-moist"></canvas></div>
+        <div class="chart-box"><div class="hd"><span data-i18n="subs_g_air">ความชื้นในอากาศ</span> (%)</div><div class="val" id="sv-air">65</div><canvas class="spark" id="c-sub-air"></canvas></div>
+        <div class="chart-box"><div class="hd"><span data-i18n="subs_g_gw">ระดับน้ำบาดาล</span> (m)</div><div class="val" id="sv-gw">-12.0</div><canvas class="spark" id="c-sub-gw"></canvas></div>
+        <div class="chart-box"><div class="hd"><span data-i18n="subs_rate_chart">อัตราทรุดตัว</span> (mm/yr)</div><div class="val" id="sv-rate">4.0</div><canvas class="spark" id="c-sub-rate"></canvas></div>
+      </div>
+
+      <div class="subs-grid" style="margin-top:16px;">
+        <div>
+          <h3 style="margin-bottom:12px;padding-bottom:9px;font-size:12px;" data-i18n="subs_baseline_title">ค่าพื้นฐานสภาพอากาศ &amp; ความชื้น (จำลองต่อเนื่อง)</h3>
+          <div class="weather-grid">
+            <div class="sim-field">
+              <label data-i18n="subs_soil_type_lbl">ประเภทดิน</label>
+              <select id="subsSoilType" class="subs-select" onchange="onSubsWeatherChange()">
+                <option value="clay" data-i18n="subs_soil_clay">ดินเหนียว (Clay)</option>
+                <option value="peat" data-i18n="subs_soil_peat">ดินพรุ/อินทรีย์ (Peat)</option>
+                <option value="loam" data-i18n="subs_soil_loam">ดินร่วน (Loam)</option>
+                <option value="sand" data-i18n="subs_soil_sand">ดินทราย (Sand)</option>
+              </select>
+            </div>
+            <div class="sim-field">
+              <label><span data-i18n="subs_horizon">ระยะเวลาคาดการณ์ (ปี)</span> <span id="subsHorizonVal">10</span></label>
+              <select id="subsHorizon" class="subs-select" onchange="onSubsWeatherChange()">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+              </select>
+            </div>
+          </div>
+          <div class="sim-field">
+            <label><span data-i18n="subs_rain">ปริมาณน้ำฝนจำลอง (mm/วัน)</span> <span id="subsRainVal">6</span></label>
+            <input type="range" id="subsRainRange" min="0" max="40" step="1" value="6" oninput="onSubsSliderInput()">
+          </div>
+          <div class="sim-field">
+            <label><span data-i18n="subs_humidity">ความชื้นในอากาศเฉลี่ย (%)</span> <span id="subsHumVal">65</span></label>
+            <input type="range" id="subsHumRange" min="20" max="100" step="1" value="65" oninput="onSubsSliderInput()">
+          </div>
+          <div class="sim-field">
+            <label><span data-i18n="subs_temp">อุณหภูมิเฉลี่ย (°C)</span> <span id="subsTempVal">32</span></label>
+            <input type="range" id="subsTempRange" min="20" max="42" step="1" value="32" oninput="onSubsSliderInput()">
+          </div>
+          <div class="sim-field">
+            <label><span data-i18n="subs_extract">อัตราการสูบน้ำบาดาล (m³/วัน x1000)</span> <span id="subsExtractVal">30</span></label>
+            <input type="range" id="subsExtractRange" min="0" max="100" step="1" value="30" oninput="onSubsSliderInput()">
+          </div>
+
+          <div class="subs-forecast">
+            <div class="f-row"><span data-i18n="subs_f_day">วันที่จำลองผ่านไป</span><b id="fDay">0</b></div>
+            <div class="f-row"><span data-i18n="subs_f_cum">ดินทรุดสะสมปัจจุบัน</span><b id="fCum">0.0 mm</b></div>
+            <div class="f-row"><span id="fHorizonLbl" data-i18n="subs_f_horizon">คาดการณ์ดินทรุดใน 10 ปี</span><b id="fHorizon">0.0 cm</b></div>
+            <div class="f-row"><span data-i18n="subs_f_risk">ระดับความเสี่ยง</span><b><span class="subs-badge low" id="fRiskBadge" data-i18n="risk_low">ต่ำ</span></b></div>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="margin-bottom:12px;padding-bottom:9px;font-size:12px;" data-i18n="subs_event_title">จำลองเหตุการณ์ดินทรุด</h3>
+          <div class="sim-field">
+            <label><span data-i18n="subs_ev_severity">ความรุนแรง (ซม. ที่คาดว่าจะทรุด)</span> <span id="subsEvSeverityVal">15</span></label>
+            <input type="range" id="subsEvSeverityRange" min="1" max="60" step="1" value="15" oninput="syncSubsEventLabels()">
+          </div>
+          <div class="sim-field">
+            <label><span data-i18n="subs_ev_depth">ความลึกชั้นดินอ่อน (m)</span> <span id="subsEvDepthVal">6</span></label>
+            <input type="range" id="subsEvDepthRange" min="1" max="30" step="1" value="6" oninput="syncSubsEventLabels()">
+          </div>
+          <div class="sim-field">
+            <label><span data-i18n="subs_ev_dur">ระยะเวลาการทรุดตัว (วินาที)</span> <span id="subsEvDurVal">30</span></label>
+            <input type="range" id="subsEvDurRange" min="5" max="120" step="5" value="30" oninput="syncSubsEventLabels()">
+          </div>
+          <div class="sim-field">
+            <label><span data-i18n="subs_ev_radius">พื้นที่ผลกระทบ (km)</span> <span id="subsEvRadiusVal">5</span></label>
+            <input type="range" id="subsEvRadiusRange" min="1" max="50" step="1" value="5" oninput="syncSubsEventLabels()">
+          </div>
+          <div class="sim-btns">
+            <button class="btn-start" id="subsEvBtnStart" onclick="startSubsEvent()" data-i18n="sim_start">เริ่มจำลอง</button>
+            <button class="btn-stop" id="subsEvBtnStop" onclick="stopSubsEvent()" disabled data-i18n="sim_stop">หยุด</button>
+            <button class="btn-reset" onclick="resetSubsEvent()" data-i18n="sim_reset">รีเซ็ต</button>
+          </div>
+          <div class="sim-status" id="subsEvStatus" data-i18n="subs_event_ready">พร้อมจำลองเหตุการณ์ดินทรุด</div>
+
+          <div class="subs-forecast" style="margin-top:14px;">
+            <div class="f-row"><span data-i18n="subs_last_event">เหตุการณ์ล่าสุด</span><b id="subsLastEventArea" data-i18n="subs_no_event">ยังไม่มีเหตุการณ์</b></div>
+            <div class="f-row"><span data-i18n="detail_alert_time">เวลาแจ้งเตือน</span><b id="subsLastEventTime">--:--:--</b></div>
+            <div class="f-row"><span data-i18n="subs_ev_severity_short">ความรุนแรง</span><b id="subsLastEventSeverity">-</b></div>
+          </div>
+
+          <h3 style="margin-top:16px;margin-bottom:10px;padding-bottom:0;border:none;"><span data-i18n="subs_rank_title">พื้นที่เสี่ยงดินทรุดสูงสุด (จำลอง)</span></h3>
+          <div class="subs-rank" id="subsRankList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="card" id="navAlerts">
+      <h3><span data-i18n="latest_alerts">การแจ้งเตือนล่าสุด</span> <span class="link" onclick="openAllAlertsModal()" data-i18n="view_all">ดูทั้งหมด</span></h3>
+      <div class="big-alert" id="bigAlert" style="display:none">
+
+        <div class="hd"><svg class="ico ico-md" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ALERT <span id="bigAlertTime" style="margin-left:auto;font-weight:400;color:var(--sub);font-size:11px"></span></div>
+        <div class="row"><span>Sensor:</span><b id="bigSensor">TH-CM-024</b></div>
+        <div class="row"><span data-i18n="area">พื้นที่:</span><b id="bigArea">เชียงใหม่</b></div>
+        <div class="row"><span>AI Prediction:</span><b id="bigPred">มีโอกาสเกิดแผ่นดินไหวภายใน 18 นาที</b></div>
+        <div class="row"><span data-i18n="risk_colon">ความเสี่ยง:</span><b id="bigRiskLbl" class="risk-high">สูง</b></div>
+        <button onclick="openAlertDetailModal()" data-i18n="view_detail">ดูรายละเอียด</button>
+      </div>
+      <div id="alertList"></div>
+    </div>
+
+    <div class="card" id="navAI">
+      <h3>AI PREDICTION <span class="link" id="predUpdated">อัปเดตล่าสุด --:--:--</span></h3>
+      <div class="risk-bar-wrap" style="margin-bottom:10px;">
+        <div class="risk-bar" id="riskBar"></div>
+        <b id="riskPct">18%</b>
+      </div>
+      <div class="pred-row"><span>Magnitude Prediction</span><b id="predMag">4.2 Mw</b></div>
+      <div class="pred-row"><span>Confidence</span><b id="predConf">73%</b></div>
+      <div class="pred-row"><span>Estimated Time</span><b id="predTime">-</b></div>
+      <div style="font-size:11px;color:var(--sub);margin-top:8px;" data-i18n="ai_footnote">อ้างอิงจากข้อมูลเซนเซอร์ 128 ตัว และโมเดล AI</div>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="system_info">ข้อมูลระบบ</h3>
+      <div class="info-row"><span data-i18n="gateway_online">Gateway ออนไลน์</span><b>12 <span data-i18n="units">ตัว</span></b></div>
+      <div class="info-row"><span><span data-i18n="data_packets">Data Packets</span> (<span data-i18n="today">วันนี้</span>)</span><b>98,765</b></div>
+      <div class="info-row"><span data-i18n="last_updated">อัปเดตล่าสุด</span><b id="sysTime">--:--:--</b></div>
+      <div style="margin-top:8px;color:var(--green);font-size:12px;">● <span data-i18n="system_normal">ระบบทำงานปกติ</span></div>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="data_sources">แหล่งข้อมูลที่ใช้ในการวิเคราะห์</h3>
+      <div class="source-list" id="sourceList">
+        <div data-src="Accelerometer" onclick="toggleSource(this)"><svg class="ico" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> Accelerometer</div><div data-src="Soil Moisture" onclick="toggleSource(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M12 2s7 8.5 7 13a7 7 0 0 1-14 0c0-4.5 7-13 7-13z"/></svg> Soil Moisture</div>
+        <div data-src="Geophone" onclick="toggleSource(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M4 7a8 8 0 0 1 16 0"/><path d="M1 11a11 11 0 0 1 22 0"/><line x1="12" y1="14" x2="12" y2="21"/><circle cx="12" cy="14" r="1.5"/></svg> Geophone</div><div data-src="GPS Deformation" onclick="toggleSource(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg> GPS Deformation</div>
+        <div data-src="Strain Gauge" onclick="toggleSource(this)"><svg class="ico" viewBox="0 0 24 24"><polyline points="2 12 6 12 9 20 15 4 18 12 22 12"/></svg> Strain Gauge</div><div data-src="Tilt Sensor" onclick="toggleSource(this)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> Tilt Sensor</div>
+        <div data-src="Groundwater Level" onclick="toggleSource(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M2 12c1.5 1.5 3 1.5 4.5 0s3-1.5 4.5 0 3 1.5 4.5 0 3-1.5 4.5 0"/><path d="M2 18c1.5 1.5 3 1.5 4.5 0s3-1.5 4.5 0 3 1.5 4.5 0 3-1.5 4.5 0"/><path d="M2 6c1.5 1.5 3 1.5 4.5 0s3-1.5 4.5 0 3 1.5 4.5 0 3-1.5 4.5 0"/></svg> Groundwater Level</div><div data-src="Barometric Pressure" onclick="toggleSource(this)"><svg class="ico" viewBox="0 0 24 24"><path d="M14 4a2 2 0 0 0-4 0v10.5a4 4 0 1 0 4 0V4z"/><line x1="10" y1="8" x2="12" y2="8"/><line x1="10" y1="11" x2="12" y2="11"/></svg> Barometric Pressure</div>
+      </div>
+      <div style="font-size:11px;color:var(--sub);margin-top:8px;" data-i18n="source_hint">คลิกที่แหล่งข้อมูลเพื่อเปิด/ปิดการใช้งานในการวิเคราะห์</div>
+    </div>
+
+    <div class="card" id="navSettings">
+      <h3 data-i18n="alert_settings">ตั้งค่าการแจ้งเตือน</h3>
+      <div class="toggle-row"><span data-i18n="email_alert">แจ้งเตือนทางอีเมล (จริง — EmailJS)</span><div class="switch" id="switchEmail" onclick="toggleSwitch(this)"><div class="knob"></div></div></div>
+      <input type="email" id="alertEmail" placeholder="you@example.com" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;margin:8px 0;">
+      <input type="text" id="ejsPublicKey" placeholder="EmailJS Public Key" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;margin:0 0 6px;">
+      <input type="text" id="ejsServiceId" placeholder="EmailJS Service ID" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;margin:0 0 6px;">
+      <input type="text" id="ejsTemplateId" placeholder="EmailJS Template ID" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;margin:0 0 8px;">
+      <div style="font-size:10.5px;color:var(--sub-dim);margin-bottom:10px;" data-i18n="emailjs_hint">สมัครฟรีที่ emailjs.com แล้ว template ควรมีตัวแปร {{to_email}} {{area}} {{magnitude}} {{time}} {{message}}</div>
+
+      <div class="toggle-row"><span data-i18n="line_alert">แจ้งเตือนทาง LINE (Messaging API)</span><div class="switch" id="switchLine" onclick="toggleSwitch(this)"><div class="knob"></div></div></div>
+      <input type="text" id="lineToken" placeholder="LINE Channel Access Token" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;margin:8px 0 6px;">
+      <input type="text" id="alertLine" placeholder="LINE User ID (U4af4980629...)" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;margin:0 0 8px;">
+      <div style="font-size:10.5px;color:var(--sub-dim);margin-bottom:10px;" data-i18n="line_hint">LINE Notify ถูกปิดให้บริการแล้ว (31 มี.ค. 2025) ระบบนี้จึงใช้ LINE Messaging API (Push) แทน — ต้องสร้าง Channel ที่ LINE Developers Console เอง การเรียกจากเบราว์เซอร์โดยตรงอาจถูก CORS บล็อก หากส่งไม่สำเร็จให้ใช้ backend/proxy ช่วยส่งต่อ</div>
+
+      <div class="toggle-row"><span data-i18n="browser_alert">แจ้งเตือนบนเบราว์เซอร์ (จริง)</span><div class="switch" id="switchBrowser" onclick="toggleBrowserNotif(this)"><div class="knob"></div></div></div>
+      <div id="notifPermHint" style="font-size:11px;color:var(--sub-dim);margin:-2px 0 8px;"></div>
+      <button class="info-btn" onclick="saveSettings()" data-i18n="save_settings">บันทึกการตั้งค่า</button>
+      <button class="info-btn" style="margin-top:8px;" onclick="testBrowserNotification()" data-i18n="test_notif">ทดสอบแจ้งเตือนจริง</button>
+      <div style="font-size:11px;color:var(--sub);margin-top:8px;" data-i18n="settings_note">* กรอกคีย์ของคุณเองแล้วเปิดสวิตช์เพื่อส่งอีเมล/LINE จริงจากเบราว์เซอร์นี้ (ค่าถูกบันทึกไว้ในเครื่องนี้เท่านั้น ไม่ส่งไปที่เซิร์ฟเวอร์อื่น)</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
